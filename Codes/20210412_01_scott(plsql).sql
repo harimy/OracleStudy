@@ -426,3 +426,260 @@ END;
 --> 데이터의 중간값들이 비어있으면 반복문으로만 출력하기엔 한계가 있음
 --  하지만 커서는 그러한 문제가 발생하지 않음
 --  DBA 가 주로 사용하며, 프로그램 개발자들은 많이 사용하지 않는다. 
+
+
+--------------------------------------------------------------------------------
+
+--■■■ TRIGGER(트리거) ■■■--
+
+-- 사전적인 의미 : 방아쇠, 촉발시키다, 야기하다, 유발하다
+
+-- 1. TRIGGER(트리거)란 DML 작업 즉, INSERT, UPDATE, DELETE 와 같은 작업이 일어날 때
+--    자동적으로 실행되는(유발되는, 촉발되는) 객체로
+--    이와 같은 특징을 강조하여(부각시켜) DML TRIGGER 라고 부르기도 한다.
+--    TRIGGER 는 데이터 무결성 뿐 아니라
+--    다음과 같은 작업에도 널리 사용된다.
+
+--    ·자동으로 파생된 열 값 생성
+--    ·잘못된 트랜잭션 방지
+--    ·복잡한 보안 권한 강제 수행
+--    ·분산 데이터베이스 노드 상에서 참조 무결성 강제수행
+--    ·복잡한 업무 규칙 강제 적용
+--    ·투명한 이벤트 로깅 제공
+--    ·복잡한 감사 제공
+--    ·동기 테이블 복제 유지관리
+--    ·테이블 엑세스 통계 수집
+
+-- 2. TRIGGER 내에서는 COMMIT, ROLLBACK 문을 사용할 수 없다.
+
+-- 3. 특징 및 종류
+
+--    ·BEFORE STATEMENT TRIGGER
+--      SQL 구문이 실행되기 전에 그 문장에 대해 한 번 실행
+--    ·BEFORE ROW TRIGGER
+--      SQL 구문이 실행되기 전에 (DML 작업을 수행하기 전에) 각 행(ROW)에 대해 한 번씩 실행
+--    ·AFTER STATEMENT TRIGGER
+--      SQL 구문이 실행된 후 그 문장에 대해 한 번 실행
+--    ·AFTER ROW TRIGGER
+--      SQL 구문이 실행된 후에 (DML 작업을 수행한 후에) 각 행(ROW)에 대해 한 번씩 실행
+
+-- 4. 형식 및 구조
+/*
+CREATE [OR REPLACE] TRIGGER 트리거명
+    [BEFORE] | [AFTER]
+    이벤트1 [OR 이벤트2 [OR 이벤트3]] ON 테이블명
+    [FOR EACH ROW [WHEN TRIGGER 조건]]
+[DECLARE]
+    -- 선언 구문;
+BEGIN
+    -- 실행 구문;
+END;
+*/
+
+
+--■■■ AFTER STATEMENT TRIGGER 상황 실습 ■■■--
+-- ※ DML 작업에 대한 이벤트 기록
+
+--○ TRIGGER(트리거) 생성(TRG_EVENTLOG)
+CREATE OR REPLACE TRIGGER TRG_EVENTLOG
+        AFTER
+        INSERT OR UPDATE OR DELETE ON TBL_TEST1
+DECLARE
+BEGIN
+    -- 이벤트 종류 구분(조건문을 통한 분기)
+    -- 구분에 대한 키워드 CHECK~!!!
+    IF (INSERTING)
+        THEN INSERT INTO TBL_EVENTLOG(MEMO)
+            VALUES('INSERT 쿼리문이 수행되었습니다.');
+    ELSIF (UPDATING)
+        THEN INSERT INTO TBL_EVENTLOG(MEMO)
+            VALUES('UPDATE 쿼리문이 수행되었습니다.');
+    ELSIF (DELETING)
+        THEN INSERT INTO TBL_EVENTLOG(MEMO)
+            VALUES('DELETE 쿼리문이 수행되었습니다.');
+    END IF;
+    
+    --COMMIT;
+    -- ※ TRIGGER 내에서는 COMMIT 구문 사용 금지~!!!
+    
+END;
+--==>> Trigger TRG_EVENTLOG이(가) 컴파일되었습니다.
+
+
+--■■■ BEFORE STATEMENT TRIGGER 상황 실습 ■■■--
+-- ※ DML 작업 수행 전에 작업 가능여부 확인
+--    (보안 정책 적용 / 업무 규칙 적용)
+
+--○ TRIGGER(트리거) 작성(TRG_TEST1_DML)
+CREATE OR REPLACE TRIGGER TRG_TEST1_DML
+        BEFORE
+        INSERT OR UPDATE OR DELETE ON TBL_TEST1
+BEGIN
+    IF (시간이 오전 8시 이전이거나... 오후 6시 이후라면...)
+        THEN 작업을 하지 못하도록 처리하겠다.
+    END IF;
+END;
+
+
+CREATE OR REPLACE TRIGGER TRG_TEST1_DML
+        BEFORE
+        INSERT OR UPDATE OR DELETE ON TBL_TEST1
+BEGIN
+    IF (TO_NUMBER(TO_CHAR(SYSDATE, 'HH24')) < 8 
+        TO_NUMBER(TO_CHAR(SYSDATE, 'HH24')) >= 18)
+        THEN 예외를 발생시키도록 하겠다.
+    END IF;
+    
+    /*
+    IF (TO_NUMBER(TO_CHAR(SYSDATE, 'HH24')) <= 7
+        TO_NUMBER(TO_CHAR(SYSDATE, 'HH24')) > 17)
+        THEN 예외를 발생시키도록 하겠다.
+    END IF;
+    */
+END;
+
+
+
+CREATE OR REPLACE TRIGGER TRG_TEST1_DML
+        BEFORE
+        INSERT OR UPDATE OR DELETE ON TBL_TEST1
+BEGIN
+    IF (TO_NUMBER(TO_CHAR(SYSDATE, 'HH24')) < 8 
+        OR TO_NUMBER(TO_CHAR(SYSDATE, 'HH24')) >= 18)
+        THEN RAISE_APPLICATION_ERROR(-20003, '작업은 08:00 ~ 18:00 까지만 가능합니다.');
+    END IF;
+END;
+--==>> Trigger TRG_TEST1_DML이(가) 컴파일되었습니다.
+
+
+--■■■ BEFORE ROW TRIGGER 상황 실습 ■■■--
+--※ 참조 관계가 설정된 데이터(자식) 삭제를 먼저 수행하는 모델
+
+-- 13:59:59
+--○ TRIGGER(트리거) 작성(TRG_TEST2_DELETE)
+CREATE OR REPLACE TRIGGER TRG_TEST2_DELETE
+        BEFORE
+        DELETE ON TBL_TEST2
+        FOR EACH ROW
+DECLARE
+BEGIN
+    DELETE
+    FROM TBL_TEST3
+    WHERE CODE = :OLD.CODE;
+    
+END;
+--==>> Trigger TRG_TEST2_DELETE이(가) 컴파일되었습니다.
+
+--※ 『:OLD』
+--   참조 전 열의 값
+--   (INSERT : 입력하기 이전 자료, DELETE : 삭제하기 이전 자료 즉, 삭제할 자료)
+
+-- 충격적인 사실
+-- 사실 오라클 내부에는 UPDATE 라는게 없다.
+-- ※ UPDATE → DELETE + INSERT 결합된 상태
+--              이 과정에서 UPDATE 하기 이전의 자료는 :OLD
+--              이 과정에서 UPDATE 한 후의 자료는 :NEW
+-- EX)
+UPDATE 회원
+SET NAME = '김아달'
+WHERE NAME = '김아별';
+--> 기존의 김아별을 DELETE 한 다음 새로운 김아달을 INSERT 하는 것과 같음
+--  따라서, 여기서 김아별이 :OLD 가 되고 김아달이 :NEW 가 되는 것.
+
+
+-- 커밋이나 롤백을 수행하기 전에는 메모리상에 저장됨
+-- INSERT 구문을 실행하면 입력 데이터를 :NEW 라는 박스에 넣어두게 된다.
+-- 이전의 테이블 내용들은 :OLD 라는 박스에 들어가게 됨
+-- 여기서 COMMIT 을 하면 실제 테이블에 올라가고
+-- ROLLBACK 하게 되면 :OLD 박스의 내용을 확정짓는 것.
+
+
+--■■■ AFTER ROW TRIGGER 상황 실습 ■■■--
+--※ 참조 테이블 관련 트랜잭션 처리
+
+-- TBL_상품, TBL_입고, TBL_출고
+--    0         10
+--   10                20     Ⅹ
+--  -10
+
+--○ TBL_입고 테이블의 데이터 입력시(입고 이벤트 발생 시)
+--   TBL_상품 테이블의 재고수량 변동 트리거 작성
+CREATE OR REPLACE TRIGGER TRG_IBGO
+        AFTER
+        INSERT ON TBL_입고
+        FOR EACH ROW
+BEGIN
+    IF (INSERTING)
+        THEN UPDATE TBL_상품
+             SET 재고수량 = 재고수량 + 새로 입고되는 입고수량
+             WHERE 상품코드 = 새로 입고되는 상품코드;
+    END IF;
+END;
+
+-- INSERT INTO TBL_입고(..상품코드..입고수량..)
+-- VALUES (..'H001'..10..);
+
+CREATE OR REPLACE TRIGGER TRG_IBGO
+        AFTER
+        INSERT ON TBL_입고
+        FOR EACH ROW
+BEGIN
+    IF (INSERTING)
+        THEN UPDATE TBL_상품
+             SET 재고수량 = 재고수량 + :NEW.입고수량
+             WHERE 상품코드 = :NEW.상품코드;
+    END IF;
+END;
+--==>> Trigger TRG_IBGO이(가) 컴파일되었습니다.
+
+
+--○ TBL_상품, TBL_입고, TBL_출고 의 관계에서
+--   입고수량, 재고수량의 트랜잭션 처리가 이루어질 수 있도록
+--   TRG_IBGO 트리거를 수정한다.
+--   프로시저처럼 예외처리까지는 하지 않고, 수량 처리만 제대로 할 수 있도록 작성.
+CREATE OR REPLACE TRIGGER TRG_IBGO
+        AFTER
+        INSERT OR UPDATE OR DELETE ON TBL_입고
+        FOR EACH ROW
+BEGIN
+    IF (INSERTING)
+        THEN UPDATE TBL_상품
+             SET 재고수량 = 재고수량 + :NEW.입고수량
+             WHERE 상품코드 = :NEW.상품코드;
+    ELSIF (UPDATING)
+        THEN UPDATE TBL_상품
+             SET 재고수량 = (재고수량 - :OLD.입고수량) + :NEW.입고수량
+             WHERE 상품코드 = :NEW.상품코드;
+    ELSIF (DELETING)
+        THEN UPDATE TBL_상품
+             SET 재고수량 = 재고수량 - :OLD.입고수량
+             WHERE 상품코드 = :OLD.상품코드;
+    END IF;
+END;
+--==>> Trigger TRG_IBGO이(가) 컴파일되었습니다.
+
+
+--○ TBL_상품, TBL_입고, TBL_출고 의 관계에서
+--   출고수량, 재고수량의 트랜잭션 처리가 이루어질 수 있도록
+--   TRG_CHULGO 트리거를 작성한다.
+CREATE OR REPLACE TRIGGER TRG_CHULGO
+        AFTER
+        INSERT OR UPDATE OR DELETE ON TBL_출고
+        FOR EACH ROW
+BEGIN
+    IF (INSERTING)
+        THEN UPDATE TBL_상품
+             SET 재고수량 = 재고수량 - :NEW.출고수량
+             WHERE 상품코드 = :NEW.상품코드;
+    ELSIF (UPDATING)
+        THEN UPDATE TBL_상품
+             SET 재고수량 = (재고수량 + :OLD.출고수량) - :NEW.출고수량
+             WHERE 상품코드 = :NEW.상품코드;
+    ELSIF (DELETING)
+        THEN UPDATE TBL_상품
+             SET 재고수량 = 재고수량 + :OLD.출고수량 
+             WHERE 상품코드 = :OLD.상품코드;
+    END IF;
+END;
+--==>> Trigger TRG_CHULGO이(가) 컴파일되었습니다.
+
