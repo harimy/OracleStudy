@@ -127,6 +127,8 @@ END;
 --   TBL_입고 테이블 구성 컬럼
 --   → 입고번호, 상품코드, 입고일자, 입고수량, 입고단가
 --   프로시저명 : PRC_입고_INSERT(상품코드, 입고수량, 입고단가)
+
+-- 내가 풀이한 내용 
 CREATE OR REPLACE PROCEDURE PRC_입고_INSERT
 ( V_상품코드  IN TBL_입고.상품코드%TYPE
 , V_입고수량  IN TBL_입고.입고수량%TYPE
@@ -155,6 +157,7 @@ BEGIN
 END;
 --==>> Procedure PRC_입고_INSERT이(가) 컴파일되었습니다.
 
+-- 함께 풀이한 내용
 --※ TBL_입고 테이블에 입고 이벤트 발생 시...
 --   관련 테이블에서 수행되어야 하는 내용
 --   ① INSERT → TBL_입고
@@ -279,6 +282,7 @@ END;
 --   출고 액션을 취소할 수 있도록 처리한다. (출고가 이루어지지 않도록)
 --   프로시저명 : PRC_출고_INSERT(상품코드, 출고수량, 출고단가)
 
+-- 내가 풀이한 내용
 CREATE OR REPLACE PROCEDURE PRC_출고_INSERT
 ( V_상품코드    IN TBL_출고.상품코드%TYPE
 , V_출고수량    IN TBL_출고.출고수량%TYPE
