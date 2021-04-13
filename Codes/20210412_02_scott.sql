@@ -634,3 +634,31 @@ SELECT *
 FROM TBL_상품;
 --==>> H001	홈런볼	1500	100
 --> 재고가 기존 개수(100개)로 돌아옴 
+
+
+--※ TRIGGER 의 정보 조회
+SELECT *
+FROM USER_TRIGGERS;
+--==>>
+/*
+"TRG_IBGO
+        AFTER
+        INSERT OR UPDATE OR DELETE ON TBL_입고
+        FOR EACH ROW
+"
+"BEGIN
+    IF (INSERTING)
+        THEN UPDATE TBL_상품
+             SET 재고수량 = 재고수량 + :NEW.입고수량
+             WHERE 상품코드 = :NEW.상품코드;
+    ELSIF (UPDATING)
+        THEN UPDATE TBL_상품
+             SET 재고수량 = (재고수량 - :OLD.입고수량) + :NEW.입고수량
+             WHERE 상품코드 = :NEW.상품코드;
+    ELSIF (DELETING)
+        THEN UPDATE TBL_상품
+             SET 재고수량 = 재고수량 - :OLD.입고수량
+             WHERE 상품코드 = :OLD.상품코드;
+    END IF;
+END;"
+*/
