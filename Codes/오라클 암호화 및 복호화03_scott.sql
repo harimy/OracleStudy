@@ -37,7 +37,7 @@ FROM TBL_EXAM;
 COMMIT;
 --==>> 커밋 완료.
 
---○ 
+--○ 암호화/복호화 패키지의 복호화 함수를 활용한 데이터 조회
 SELECT ID, CRYPTPACK.DECRYPT(PW, 'BATMAN') AS PW
 FROM TBL_EXAM;
 --==>> 1	�Q~�
